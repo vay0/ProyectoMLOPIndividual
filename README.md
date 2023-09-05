@@ -6,3 +6,6 @@ Se nos pide hacer el proceso de ETL, desarrollo de API, deployment, analisis exp
 el fin de realizar un sistema de recomendacion.
 En estte proyecto se encontraran con el proceso de ETL, un analisis de sentimiento, las funciones para los endpoints de la API, el
 deployment de esta ultima y un analisis exploratorio de datos.
+
+### video
+https://youtu.be/B7cV-jUuJTc
