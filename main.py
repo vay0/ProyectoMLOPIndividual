@@ -126,9 +126,13 @@ def desarrollador(desarrollador: str):
   # Cantidad de items
   cantidad_items_desarrollador = len(desarrollador_data)
 
-   # Porcentaje de contenido gratuito por empresa desarrolladora y año
+  # Porcentaje de contenido gratuito por empresa desarrolladora y año
   contenido = desarrollador_data[['id', 'developer', 'price', 'release_date']]
   contenido = contenido.dropna(subset=['release_date'])
+    
+  # Convertir release_date a cadena y manejar NaN
+  contenido['release_date'] = contenido['release_date'].astype(str)
+    
   contenido['year'] = contenido['release_date'].str.split('-').str[0].astype(int)
   contenido_gratis = contenido[contenido['price'] == 0]
     
