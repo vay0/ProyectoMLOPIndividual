@@ -68,83 +68,82 @@ def genero(genero: str):
   Devuelve el puesto en el que se encuentra un género en el ranking de los mismos, analizado 
   a partir de la columna PlayTimeForever.
   """
-  generos = pd.merge(df_generos, df_items, left_on='id', right_on='item_id')
+  # Combinar DataFrames
+  generos = pd.merge(df_generos, df_items, left_on='id', right_on='item_id', how='inner')
 
-  if genero in generos['genres'].values:
-    tiempo_juego = generos.groupby('genres')['playtime_forever'].sum()
-    tiempo_juego = pd.DataFrame(tiempo_juego)
-    tiempo_juego = tiempo_juego.sort_values(by = ['playtime_forever'], ascending=False)
-    tiempo_juego['ranking'] = tiempo_juego.rank(ascending=False)
-    tiempo_juego['ranking'] = tiempo_juego['ranking'].astype(int)
-    lugar_ranking = tiempo_juego.loc[genero, 'ranking']
-    ranking = f'El genero {genero} esta ubicado en el puesto {lugar_ranking} del ranking'
-    return ranking
+  # Filtrar por género
+  genero_data = generos[generos['genres'] == genero]
 
-  else:
-    no_encontrado = f'El genero {genero} no fue encontrado en la base de datos'
-    return no_encontrado
+  if genero_data.empty:
+      return f'El género {genero} no fue encontrado en la base de datos'
+
+    # Calcular el ranking del género
+  tiempo_juego = genero_data.groupby('genres')['playtime_forever'].sum()
+  tiempo_juego = tiempo_juego.reset_index()
+  tiempo_juego = tiempo_juego.sort_values(by='playtime_forever', ascending=False)
+  tiempo_juego['ranking'] = tiempo_juego.index + 1
+
+  lugar_ranking = tiempo_juego.loc[tiempo_juego['genres'] == genero, 'ranking'].values[0]
+  ranking = f'El género {genero} está ubicado en el puesto {lugar_ranking} del ranking'
+    
+  return ranking
   
 @app.get('/userforgenre')
 def userforgenre(genero: str):
   """
   Retorna el top 5 de usuarios con más horas de juego en el género dado, con su URL (del user) y user_id.
   """
-  generos_usuario = pd.merge(df_generos, df_items, left_on='id', right_on='item_id')
+  # Combinar DataFrames
+  generos_usuario = pd.merge(df_generos, df_items, left_on='id', right_on='item_id', how='inner')
 
-  if genero in generos_usuario['genres'].values:
-    generos_usuario_top = generos_usuario.groupby(['genres', 'user_id', 'user_url'])[['playtime_forever']].sum()
-    generos_usuario_top['playtime_forever'] = generos_usuario_top['playtime_forever'] / 60
-    grupo_genero = generos_usuario_top[generos_usuario_top.index.get_level_values('genres') == genero]
-    grupo_genero_ordenado = grupo_genero.sort_values(by='playtime_forever', ascending=False)
-    top_usuarios = grupo_genero_ordenado.reset_index()
-    top_usuarios = top_usuarios[['user_id', 'user_url']].head(5)
-    tuplas = []
-    for indice, fila in top_usuarios.head(5).iterrows():
-      columna1 = fila['user_id']
-      columna2 = fila['user_url']
-      tupla = (indice + 1, columna1, columna2)
-      tuplas.append(tupla)
-    return tuplas
+  # Filtrar por género
+  generos_usuario = generos_usuario[generos_usuario['genres'] == genero]
 
-  else:
-    no_encontrado = f'El genero {genero} no fue encontrado en la base de datos'
-    return no_encontrado
+  if generos_usuario.empty:
+      return f'El género {genero} no fue encontrado en la base de datos'
+
+  # Calcular las 5 mejores tuplas
+  generos_usuario['playtime_forever'] = generos_usuario['playtime_forever'] / 60
+  top_usuarios = generos_usuario.nlargest(5, 'playtime_forever')[['user_id', 'user_url']]
+  top_usuarios['rank'] = top_usuarios.reset_index().index + 1
+
+  tuplas = top_usuarios[['rank', 'user_id', 'user_url']].to_records(index=False).tolist()
+
+  return tuplas
   
 @app.get('/desarrollador')
 def desarrollador(desarrollador: str):
   """
   Rentorna la cantidad de items y porcentaje de contenido Free por año según la empresa desarrolladora dada.
   """
+  # Filtrar juegos del desarrollador
   games_items = pd.merge(df_games, df_items, left_on='id', right_on='item_id')
+  desarrollador_data = games_items[games_items['developer'] == desarrollador]
 
-  if desarrollador in games_items['developer'].values:
-    # Cantidad de items
-    cantidad_items = games_items.groupby('developer')[['item_id']].count()
-    cantidad_items_desarrollador = cantidad_items.loc[desarrollador, 'item_id']
-    cantidad = f'La cantidad de items del desarrollador {desarrollador} es {cantidad_items_desarrollador}'
+  if desarrollador_data.empty:
+      return f'El desarrollador {desarrollador} no fue encontrado en la base de datos'
 
-    # Porcentaje de contenido free por empresa desarrolladora y año
-    contenido = games_items[['id','developer', 'price', 'release_date']]
-    contenido = contenido[contenido['release_date'].notna()]
-    contenido['year'] = contenido['release_date'].str.split('-').str[0].astype(int)
-    contenido_gratis = contenido[contenido['price'] == 0]
-    desarrollador_year_gratis = contenido_gratis.groupby(['developer', 'year'])[['id']].nunique().reset_index()
-    desarrollador_year_gratis['contenido_gratis'] = desarrollador_year_gratis['id']
-    desarrollador_year_gratis.drop(columns=['id'], inplace=True)
-    desarrollador_year = contenido.groupby(['developer', 'year'])[['id']].nunique().reset_index()
-    desarrollador_year['contenido_total'] = desarrollador_year['id']
-    desarrollador_year.drop(columns=['id'], inplace=True)
-    resultado = pd.merge(desarrollador_year_gratis, desarrollador_year, on=['developer', 'year'], how='inner')
-    resultado['porcentaje'] = resultado['contenido_gratis'] / resultado['contenido_total'] * 100
-    resultado['porcentaje'] = resultado['porcentaje'].astype(int)
-    resultado = resultado.groupby(['developer', 'year'], group_keys=True)[['porcentaje']].apply(lambda x: x)
-    desarrollador_porcentaje = resultado[resultado.index.get_level_values('developer') == desarrollador]
-    desarrollador_porcentaje = tabulate(desarrollador_porcentaje, headers='keys', tablefmt='psql')
-    return cantidad, desarrollador_porcentaje
+  # Cantidad de items
+  cantidad_items_desarrollador = len(desarrollador_data)
 
-  else:
-    no_encontrado = f'El desarrollador {desarrollador} no fue encontrado en la base de datos'
-    return no_encontrado
+   # Porcentaje de contenido gratuito por empresa desarrolladora y año
+  contenido = desarrollador_data[['id', 'developer', 'price', 'release_date']]
+  contenido = contenido.dropna(subset=['release_date'])
+  contenido['year'] = contenido['release_date'].str.split('-').str[0].astype(int)
+  contenido_gratis = contenido[contenido['price'] == 0]
+    
+  desarrollador_year_gratis = contenido_gratis.groupby(['developer', 'year'])[['id']].nunique().reset_index()
+  desarrollador_year = contenido.groupby(['developer', 'year'])[['id']].nunique().reset_index()
+    
+  resultado = pd.merge(desarrollador_year_gratis, desarrollador_year, on=['developer', 'year'], how='inner')
+  resultado['porcentaje'] = (resultado['id_x'] / resultado['id_y'] * 100).astype(int)
+    
+  # Formatear resultados
+  cantidad = f'La cantidad de items del desarrollador {desarrollador} es {cantidad_items_desarrollador}'
+  desarrollador_porcentaje = tabulate(resultado, headers='keys', tablefmt='psql')
+    
+  return cantidad, desarrollador_porcentaje
+    
   
 @app.get('/sentiment_analysis')
 def sentiment_analysis(year: int):
