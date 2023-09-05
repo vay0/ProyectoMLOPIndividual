@@ -157,20 +157,24 @@ def sentiment_analysis(year: int):
   """
   games_reviews = pd.merge(df_games, df_reviews, left_on='id', right_on='item_id')
   sentimiento = games_reviews[['release_date', 'sentiment']]
-  sentimiento = sentimiento[sentimiento['release_date'].notna()]
+  sentimiento = sentimiento.dropna(subset=['release_date'])  # Eliminar filas con release_date nulos
+    
+  # Convertir release_date a cadena y manejar NaN
+  sentimiento['release_date'] = sentimiento['release_date'].astype(str)
+    
   sentimiento['year'] = sentimiento['release_date'].str.split('-').str[0].astype(int)
     
   if year in sentimiento['year'].values:
-    filtro_year = sentimiento[sentimiento['year'] == year]
-    sentiment_mapping = {2: 'positivo', 1: 'neutro', 0: 'negativo'}
-    filtro_year['sentiment'] = filtro_year['sentiment'].map(sentiment_mapping)
-    sentiment_counts = filtro_year['sentiment'].value_counts().to_dict()
+      filtro_year = sentimiento[sentimiento['year'] == year]
+      sentiment_mapping = {2: 'positivo', 1: 'neutro', 0: 'negativo'}
+      filtro_year['sentiment'] = filtro_year['sentiment'].map(sentiment_mapping)
+      sentiment_counts = filtro_year['sentiment'].value_counts().to_dict()
         
-    return sentiment_counts
+      return sentiment_counts
     
   else:
-    no_encontrado = f'El año {year} no fue encontrado en la base de datos'
-    return no_encontrado
+      no_encontrado = f'El año {year} no fue encontrado en la base de datos'
+      return no_encontrado
   
   
   # http://127.0.0.1:8000
