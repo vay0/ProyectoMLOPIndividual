@@ -6,10 +6,10 @@ from tabulate import tabulate
 app = FastAPI(title= 'STEAM',
               description= 'El objetivo de esta API es mostrar los resultados para las siguientes funciones a partir de la bases de datos de STEAM')
 
-df_games = read_csv('games.csv')
+df_games = pd.read_parquet('games.parquet')
 df_items = pd.read_parquet('items.parquet')
-df_reviews = read_csv('reviews.csv')
-df_generos = read_csv('generos.csv')
+df_reviews = pd.read_parquet('reviews.parquet')
+df_generos = pd.read_parquet('generos.parquet')
 
 @app.get('/userdata')
 def userdata(user_id: str):
